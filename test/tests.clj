@@ -59,9 +59,10 @@
           (posts test-posts-datastore)))))
 
 (defmacro define-template [template-name & template-params]
-  `(def ~template-name (apply merge (map (fn [[k# v#]]
-                                            {(keyword k#) (var-get (resolve v#))})
-                                          (partition 2 2 '~template-params)))))
+  (let [template-params (concat [{}] (mapcat (fn [[k v]]
+                                               [(keyword k) v])
+                                             (partition 2 2 template-params)))]
+    `(apply assoc '~template-params)))
 
 (defn replace-in-str [str-val old-char new-char]
   (apply str
