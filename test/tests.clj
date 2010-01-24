@@ -35,6 +35,28 @@
 (add test-posts-datastore test-post)
 (add test-posts-datastore (blog-post "test post2" "hello world2"))
 
+
+(defmacro define-template [template-name & template-params]
+  (let [template-params (vec (concat [{}] (mapcat (fn [[k v]]
+                                                [(keyword k) (list 'var-get (resolve v))])
+                                              (partition 2 2 template-params))))]
+    `(def ~template-name (apply assoc ~template-params))))
+
+(defn replace-in-str [str-val old-char new-char]
+  (apply str
+         (map (fn [ch] (if (= ch old-char) new-char ch)) str-val)))
+
+(defmacro expected-method? [method name]
+  (let [name-s (str name)]
+    `(do
+       (>= (.indexOf (str ~method)
+                     (replace-in-str ~name-s \- \_))
+           0))))
+
+(defn render-posts-list-page [template posts]
+  (let [{page-template :page posts-template :posts post-template :post} template]
+    (page-template posts-template post-template posts)))
+
 (deftest create-new-blog-post
   (is (= "test post" (:title test-post)))
   (is (= "hello world" (:content test-post))))
@@ -58,23 +80,6 @@
           simple-post-template
           (posts test-posts-datastore)))))
 
-(defmacro define-template [template-name & template-params]
-  (let [template-params (concat [{}] (mapcat (fn [[k v]]
-                                               [(keyword k) v])
-                                             (partition 2 2 template-params)))]
-    `(apply assoc '~template-params)))
-
-(defn replace-in-str [str-val old-char new-char]
-  (apply str
-         (map (fn [ch] (if (= ch old-char) new-char ch)) str-val)))
-
-(defmacro expected-method? [method name]
-  (let [name-s (str name)]
-    `(do
-       (>= (.indexOf (str ~method)
-                     (replace-in-str ~name-s \- \_))
-           0))))
-
 (deftest define-a-page-template
   (define-template simple-template
             page simple-page-template
@@ -83,10 +88,6 @@
   (is (expected-method? (:page simple-template) simple-page-template))
   (is (expected-method? (:posts simple-template) simple-posts-template))
   (is (expected-method? (:post simple-template) simple-post-template)))
-
-(defn render-posts-list-page [template posts]
-  (let [{page-template :page posts-template :posts post-template :post} template]
-    (page-template posts-template post-template posts)))
 
 (deftest render-a-page-with-a-template
   (define-template simple-blog-template
